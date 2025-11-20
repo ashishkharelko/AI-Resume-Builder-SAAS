@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Check, ArrowRight, Sparkles, Layout, Shield, Zap, FileUp, FileText, LogIn, UserPlus } from 'lucide-react';
+import { Check, ArrowRight, Sparkles, Layout, Shield, Zap, FileUp, FileText, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { User } from '../types';
 
 interface LandingPageProps {
@@ -10,9 +10,10 @@ interface LandingPageProps {
   isImporting: boolean;
   user: User | null;
   onLoginClick: () => void;
+  onLogout: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe, onImport, isImporting, user, onLoginClick }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe, onImport, isImporting, user, onLoginClick, onLogout }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,6 +53,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe, 
           {user ? (
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-gray-700 hidden sm:block">Hi, {user.name}</span>
+              <button 
+                onClick={onLogout}
+                className="flex items-center gap-2 text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                <LogOut size={18} />
+                <span>Log Out</span>
+              </button>
               <button 
                 onClick={onStart}
                 className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"

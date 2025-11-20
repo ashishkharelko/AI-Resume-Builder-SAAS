@@ -11,7 +11,7 @@ import { extractTextFromFile } from './services/fileParserService';
 import { generateDocx } from './services/docxService';
 import { authService } from './services/authService';
 import saveAs from 'file-saver';
-import { FileText, Download, Layout, Sparkles, CheckCircle, AlertCircle, X, Check, Lock, Zap, ArrowLeft, Plus, Eye, SplitSquareHorizontal, Printer, FileType, Save, LogOut, User as UserIcon } from 'lucide-react';
+import { FileText, Download, Layout, Sparkles, CheckCircle, AlertCircle, X, Check, Lock, Zap, ArrowLeft, Plus, Eye, SplitSquareHorizontal, Printer, FileType, Save, LogOut, User as UserIcon, Loader2 } from 'lucide-react';
 
 // Declare html2pdf for TypeScript
 declare const html2pdf: any;
@@ -156,7 +156,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
-  // Dedicated ref for PDF generation to avoid scaling issues
+  // Dedicated ref for PDF generation
   const pdfComponentRef = useRef<HTMLDivElement>(null);
 
   // Check authentication status on mount
@@ -179,6 +179,34 @@ const App: React.FC = () => {
     };
     loadResume();
   }, [user]);
+
+  // Effect for triggering PDF download once the temporary view is rendered
+  useEffect(() => {
+    if (isDownloading === 'pdf' && pdfComponentRef.current) {
+      // Give a small delay to ensure DOM paint
+      setTimeout(() => {
+        const element = pdfComponentRef.current;
+        if (!element) return;
+
+        const opt = {
+          margin: 0,
+          filename: `${resumeData.personal.fullName.replace(/\s+/g, '_')}_Resume.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, // Removed windowWidth to fix right margin issue
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        if (typeof html2pdf !== 'undefined') {
+          html2pdf().from(element).set(opt).save().then(() => {
+             setIsDownloading(null);
+          });
+        } else {
+          alert('PDF library not loaded. Please check your internet connection.');
+          setIsDownloading(null);
+        }
+      }, 200);
+    }
+  }, [isDownloading, resumeData]);
 
   const isPro = user?.isPro || isGuestPro;
 
@@ -208,27 +236,7 @@ const App: React.FC = () => {
   };
 
   const handleDownloadPDF = () => {
-    // Use the dedicated unscaled PDF ref
-    if (!pdfComponentRef.current) return;
-    
     setIsDownloading('pdf');
-    const element = pdfComponentRef.current;
-    const opt = {
-      margin: 0,
-      filename: `${resumeData.personal.fullName.replace(/\s+/g, '_')}_Resume.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    if (typeof html2pdf !== 'undefined') {
-      html2pdf().from(element).set(opt).save().then(() => {
-         setIsDownloading(null);
-      });
-    } else {
-      alert('PDF library not loaded. Please check your internet connection.');
-      setIsDownloading(null);
-    }
   };
 
   const handleDownloadDOCX = async () => {
@@ -391,6 +399,7 @@ const App: React.FC = () => {
           isImporting={isImporting}
           user={user}
           onLoginClick={() => setShowAuthModal(true)}
+          onLogout={handleLogout}
         />
         <AuthModal 
           isOpen={showAuthModal}
@@ -533,7 +542,7 @@ const App: React.FC = () => {
                    {/* Original / Current */}
                    <div>
                      {isCompareMode && <div className="text-center mb-2 font-bold text-gray-500 uppercase tracking-wider text-sm">Original</div>}
-                     {/* Note: previewRef is used here for visual DOM manipulations if needed, but not for PDF generation anymore */}
+                     {/* Note: previewRef is used here for visual DOM manipulations if needed */}
                      <ResumePreview data={resumeData} template={activeTemplate} previewRef={previewRef} />
                    </div>
 
@@ -877,17 +886,25 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* HIDDEN PDF CONTENT - Rendered specifically for html2pdf generation off-screen */}
-      {/* We position this off-screen but keep it part of the layout so it renders dimensions correctly */}
-      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-         <div ref={pdfComponentRef} className="w-[210mm] bg-white">
-            <ResumePreview data={resumeData} template={activeTemplate} />
-         </div>
-      </div>
+      {/* PDF Generation Overlay - Only visible during generation to ensure correct layout capture */}
+      {isDownloading === 'pdf' && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+                <p className="text-gray-700 font-medium">Preparing PDF...</p>
+            </div>
+            {/* Off-screen render container - Fixed to A4 width at top-left */}
+            <div className="fixed left-0 top-0 w-[210mm] bg-white z-[-1] opacity-0 pointer-events-none">
+                <div ref={pdfComponentRef}>
+                   <ResumePreview data={resumeData} template={activeTemplate} staticMode={true} />
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* PRINT CONTENT - Only visible during browser print action */}
       <div id="print-content">
-         <ResumePreview data={resumeData} template={activeTemplate} />
+         <ResumePreview data={resumeData} template={activeTemplate} staticMode={true} />
       </div>
     </>
   );

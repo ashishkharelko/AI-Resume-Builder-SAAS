@@ -7,6 +7,7 @@ interface Props {
   data: ResumeData;
   template: TemplateId;
   previewRef?: React.RefObject<HTMLDivElement | null>;
+  staticMode?: boolean;
 }
 
 /* --- MODERN TEMPLATE --- */
@@ -798,10 +799,14 @@ const ExecutiveTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
   </div>
 );
 
-export const ResumePreview: React.FC<Props> = ({ data, template, previewRef }) => {
+export const ResumePreview: React.FC<Props> = ({ data, template, previewRef, staticMode }) => {
   return (
-    <div className="shadow-2xl rounded-sm overflow-hidden bg-white print:shadow-none print:overflow-visible origin-top w-[210mm] print:w-full" style={{ minHeight: '297mm', margin: '0 auto' }}>
-      <div ref={previewRef} className="h-full min-h-[297mm]">
+    <div 
+      ref={previewRef}
+      className={`${staticMode ? '' : 'shadow-2xl rounded-sm overflow-hidden'} bg-white print:shadow-none print:overflow-visible origin-top w-[210mm] print:w-full`} 
+      style={{ minHeight: '297mm', margin: staticMode ? '0' : '0 auto' }}
+    >
+      <div className="h-full min-h-[297mm]">
         {template === 'modern' && <ModernTemplate data={data} />}
         {template === 'classic' && <ClassicTemplate data={data} />}
         {template === 'minimal' && <MinimalTemplate data={data} />}
