@@ -1,0 +1,5 @@
+{
+  "name": "ResumeAI Builder",
+  "description": "A professional React-based resume builder with Gemini AI integration for ATS optimization, live preview, and multiple templates.",
+  "requestFramePermissions": []
+}
