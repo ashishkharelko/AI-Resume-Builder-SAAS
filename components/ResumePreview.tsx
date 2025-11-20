@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ResumeData, TemplateId } from '../types';
 import { MapPin, Mail, Phone, Linkedin, Globe, Briefcase, GraduationCap, User, Github, FolderKanban } from 'lucide-react';
@@ -18,7 +19,7 @@ const ModernTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
         )}
         <div>
           <h1 className="text-4xl font-bold text-blue-900 uppercase tracking-wide">{data.personal.fullName}</h1>
-          <p className="text-lg text-blue-600 font-medium mt-1">Experienced Professional</p>
+          <p className="text-lg text-blue-600 font-medium mt-1">{data.personal.jobTitle}</p>
         </div>
       </div>
       <div className="text-right text-sm text-gray-600 space-y-1">
@@ -117,7 +118,8 @@ const ClassicTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
           <img src={data.personal.photo} alt={data.personal.fullName} className="w-28 h-28 rounded-full object-cover border border-gray-300" />
         </div>
       )}
-      <h1 className="text-3xl font-bold tracking-widest mb-2">{data.personal.fullName}</h1>
+      <h1 className="text-3xl font-bold tracking-widest mb-1">{data.personal.fullName}</h1>
+      {data.personal.jobTitle && <p className="text-lg italic text-gray-700 mb-2">{data.personal.jobTitle}</p>}
       <div className="flex justify-center gap-4 text-sm italic text-gray-700 flex-wrap">
         <span>{data.personal.email}</span>
         <span>•</span>
@@ -210,7 +212,8 @@ const MinimalTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
               <img src={data.personal.photo} alt={data.personal.fullName} className="w-32 h-32 rounded object-cover grayscale" />
             </div>
           )}
-          <h1 className="text-3xl font-light tracking-tight text-slate-900 mb-4">{data.personal.fullName}</h1>
+          <h1 className="text-3xl font-light tracking-tight text-slate-900 mb-1">{data.personal.fullName}</h1>
+          <p className="text-sm font-medium text-slate-500 mb-4 uppercase tracking-wider">{data.personal.jobTitle}</p>
           <div className="text-xs space-y-2 text-slate-600">
              <div className="flex items-center gap-2"><Mail size={12} /> {data.personal.email}</div>
              <div className="flex items-center gap-2"><Phone size={12} /> {data.personal.phone}</div>
@@ -299,6 +302,7 @@ const ProfessionalTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
     <header className="bg-slate-900 text-white p-10 pb-12 flex justify-between items-center">
       <div>
         <h1 className="text-4xl font-bold uppercase tracking-widest mb-2">{data.personal.fullName}</h1>
+        <p className="text-lg text-slate-300 font-medium mb-2">{data.personal.jobTitle}</p>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-300 mt-4">
           <div className="flex items-center gap-2"><Mail size={14} /> {data.personal.email}</div>
           <div className="flex items-center gap-2"><Phone size={14} /> {data.personal.phone}</div>
@@ -450,7 +454,8 @@ const CreativeTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
     {/* Main Content */}
     <main className="w-2/3 p-10 text-gray-800">
       <header className="mb-10">
-        <h1 className="text-5xl font-serif font-bold text-teal-900 leading-tight mb-4">{data.personal.fullName}</h1>
+        <h1 className="text-5xl font-serif font-bold text-teal-900 leading-tight mb-2">{data.personal.fullName}</h1>
+        <p className="text-2xl text-teal-700 font-medium mb-6">{data.personal.jobTitle}</p>
         <p className="text-lg text-teal-600 italic">{data.personal.summary}</p>
       </header>
 
@@ -508,7 +513,8 @@ const PolishedTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
         </div>
       )}
       <div className="flex-1">
-        <h1 className="text-4xl font-bold text-indigo-900 mb-2">{data.personal.fullName}</h1>
+        <h1 className="text-4xl font-bold text-indigo-900 mb-1">{data.personal.fullName}</h1>
+        <p className="text-xl text-indigo-600 font-medium mb-3">{data.personal.jobTitle}</p>
         <div className="flex flex-wrap gap-3 text-sm text-gray-600">
           <span className="flex items-center gap-1"><Mail size={12} /> {data.personal.email}</span>
           <span className="flex items-center gap-1"><Phone size={12} /> {data.personal.phone}</span>
@@ -606,6 +612,7 @@ const ElegantTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
          </div>
       )}
       <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-wide">{data.personal.fullName}</h1>
+      <p className="text-center text-lg tracking-widest uppercase text-gray-600 mb-4">{data.personal.jobTitle}</p>
       <div className="flex justify-center gap-6 text-xs uppercase tracking-widest text-gray-500">
         <span>{data.personal.email}</span>
         <span>{data.personal.phone}</span>
@@ -739,7 +746,7 @@ const ExecutiveTemplate: React.FC<{ data: ResumeData }> = ({ data }) => (
     <main className="w-2/3 p-10 flex flex-col">
        <header className="mb-12 border-b border-gray-200 pb-6">
          <h1 className="text-5xl font-bold text-slate-900 uppercase tracking-tight mb-2">{data.personal.fullName}</h1>
-         <p className="text-xl text-amber-600 font-light">Senior Professional</p>
+         <p className="text-xl text-amber-600 font-light">{data.personal.jobTitle}</p>
        </header>
 
        <div className="space-y-10">

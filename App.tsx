@@ -1,13 +1,17 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { ResumeData, TemplateId, ATSAnalysis } from './types';
+
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { ResumeData, TemplateId, ATSAnalysis, User } from './types';
 import { Editor } from './components/Editor';
 import { ResumePreview } from './components/ResumePreview';
 import { LandingPage } from './components/LandingPage';
 import { PaymentModal } from './components/PaymentModal';
-import { analyzeATS } from './services/geminiService';
+import { AuthModal } from './components/AuthModal';
+import { analyzeATS, parseResumeFromText } from './services/geminiService';
+import { extractTextFromFile } from './services/fileParserService';
 import { generateDocx } from './services/docxService';
+import { authService } from './services/authService';
 import saveAs from 'file-saver';
-import { FileText, Download, Layout, Sparkles, CheckCircle, AlertCircle, X, Check, Lock, Zap, ArrowLeft, Plus, Eye, SplitSquareHorizontal, Printer, FileType } from 'lucide-react';
+import { FileText, Download, Layout, Sparkles, CheckCircle, AlertCircle, X, Check, Lock, Zap, ArrowLeft, Plus, Eye, SplitSquareHorizontal, Printer, FileType, Save, LogOut, User as UserIcon } from 'lucide-react';
 
 // Declare html2pdf for TypeScript
 declare const html2pdf: any;
@@ -15,6 +19,7 @@ declare const html2pdf: any;
 const initialData: ResumeData = {
   personal: {
     fullName: 'Alex Morgan',
+    jobTitle: 'Senior Full Stack Engineer',
     email: 'alex.morgan@example.com',
     phone: '+1 (555) 123-4567',
     linkedin: 'linkedin.com/in/alexmorgan',
@@ -133,8 +138,10 @@ const ScoreBar = ({ label, score }: { label: string; score: number }) => {
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'landing' | 'builder'>('landing');
-  const [isPro, setIsPro] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isGuestPro, setIsGuestPro] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [resumeData, setResumeData] = useState<ResumeData>(initialData);
   const [activeTemplate, setActiveTemplate] = useState<TemplateId>('modern');
@@ -145,7 +152,35 @@ const App: React.FC = () => {
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [isCompareMode, setIsCompareMode] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const previewRef = useRef<HTMLDivElement>(null);
+  // Dedicated ref for PDF generation to avoid scaling issues
+  const pdfComponentRef = useRef<HTMLDivElement>(null);
+
+  // Check authentication status on mount
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
+    }
+  }, []);
+
+  // Load saved resume if user is logged in
+  useEffect(() => {
+    const loadResume = async () => {
+      if (user) {
+        const saved = await authService.getResume(user.id);
+        if (saved) {
+          setResumeData(saved);
+        }
+      }
+    };
+    loadResume();
+  }, [user]);
+
+  const isPro = user?.isPro || isGuestPro;
 
   // Compute Optimized Data for Comparison
   const optimizedData = useMemo(() => {
@@ -173,14 +208,11 @@ const App: React.FC = () => {
   };
 
   const handleDownloadPDF = () => {
-    if (!previewRef.current) return;
-    
-    // If inside modal, element might be different. prefer the one in the modal if open
-    // Or generally prefer the one currently rendered in the DOM.
-    // For reliable downloading, we use the rendered reference.
+    // Use the dedicated unscaled PDF ref
+    if (!pdfComponentRef.current) return;
     
     setIsDownloading('pdf');
-    const element = previewRef.current;
+    const element = pdfComponentRef.current;
     const opt = {
       margin: 0,
       filename: `${resumeData.personal.fullName.replace(/\s+/g, '_')}_Resume.pdf`,
@@ -189,8 +221,6 @@ const App: React.FC = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Use html2pdf to generate and save
-    // We need to ensure html2pdf is loaded (via CDN script in index.html)
     if (typeof html2pdf !== 'undefined') {
       html2pdf().from(element).set(opt).save().then(() => {
          setIsDownloading(null);
@@ -211,6 +241,22 @@ const App: React.FC = () => {
       alert("Failed to generate Word document.");
     } finally {
       setIsDownloading(null);
+    }
+  };
+
+  const handleImportResume = async (file: File) => {
+    setIsImporting(true);
+    try {
+      const rawText = await extractTextFromFile(file);
+      const parsedData = await parseResumeFromText(rawText);
+      setResumeData(parsedData);
+      setCurrentView('builder');
+      alert("Resume imported successfully! Please review the data.");
+    } catch (error) {
+      console.error("Import failed", error);
+      alert("Failed to import resume. Please check the file format (PDF/DOCX) and try again.");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -280,6 +326,30 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSave = async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      await authService.saveResume(user.id, resumeData);
+      alert("Resume saved successfully!");
+    } catch (e) {
+      alert("Failed to save resume.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setUser(null);
+    setIsGuestPro(false);
+    setResumeData(initialData); 
+  };
+
   const selectTemplate = (templateId: TemplateId, isPremium: boolean = false) => {
     if (isPremium && !isPro) {
       setShowTemplateGallery(false);
@@ -290,22 +360,51 @@ const App: React.FC = () => {
     setShowTemplateGallery(false);
   };
 
+  const handlePaymentSuccess = async () => {
+    if (user) {
+      await authService.upgradeUser(user.id);
+      // Refresh user state from source of truth to ensure consistency
+      const updatedUser = authService.getCurrentUser();
+      if (updatedUser) setUser(updatedUser);
+    } else {
+      // Allow guest access for this session
+      setIsGuestPro(true);
+    }
+    setShowPaymentModal(false);
+    if (currentView === 'landing') setCurrentView('builder');
+  };
+
   if (currentView === 'landing') {
     return (
       <>
         <LandingPage 
           onStart={() => setCurrentView('builder')} 
           onSubscribe={() => {
-            setShowPaymentModal(true);
+            // For landing page, we encourage login but allow guest payment
+            if (!user) {
+               setShowAuthModal(true);
+            } else {
+               setShowPaymentModal(true);
+            }
+          }}
+          onImport={handleImportResume}
+          isImporting={isImporting}
+          user={user}
+          onLoginClick={() => setShowAuthModal(true)}
+        />
+        <AuthModal 
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onLogin={(u) => {
+             setUser(u);
+             setShowAuthModal(false);
+             if (!u.isPro) setShowPaymentModal(true); // Optional: prompt upgrade after login from landing page
           }}
         />
         <PaymentModal 
           isOpen={showPaymentModal} 
           onClose={() => setShowPaymentModal(false)} 
-          onSuccess={() => {
-            setIsPro(true);
-            setCurrentView('builder');
-          }}
+          onSuccess={handlePaymentSuccess}
         />
       </>
     );
@@ -326,6 +425,42 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Auth State */}
+              {user ? (
+                 <div className="flex items-center gap-3 mr-2">
+                    <span className="text-sm font-medium text-gray-700 hidden md:block">Hi, {user.name}</span>
+                    <button 
+                      onClick={handleSave}
+                      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded transition-colors"
+                    >
+                      {isSaving ? <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"/> : <Save size={16}/>}
+                      Save
+                    </button>
+                    <button 
+                      onClick={handleLogout}
+                      className="text-gray-400 hover:text-red-500 p-1.5 rounded hover:bg-gray-100"
+                      title="Logout"
+                    >
+                       <LogOut size={18} />
+                    </button>
+                 </div>
+              ) : (
+                <div className="flex items-center gap-2 mr-2">
+                   <button 
+                     onClick={() => setShowAuthModal(true)}
+                     className="text-sm font-bold text-gray-700 hover:text-blue-600 px-3 py-2"
+                   >
+                     Log In
+                   </button>
+                   <button 
+                     onClick={() => setShowAuthModal(true)}
+                     className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                   >
+                     Sign Up
+                   </button>
+                </div>
+              )}
+              
               {!isPro && (
                 <button 
                   onClick={() => setShowPaymentModal(true)}
@@ -340,7 +475,7 @@ const App: React.FC = () => {
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
               >
                 <Layout size={18} />
-                <span className="hidden sm:inline">Change Template</span>
+                <span className="hidden sm:inline">Templates</span>
               </button>
 
               <div className="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
@@ -379,7 +514,12 @@ const App: React.FC = () => {
                    <ArrowLeft size={14} /> Back to Home
                 </button>
              </div>
-            <Editor data={resumeData} onChange={setResumeData} isPro={isPro} onUpgrade={() => setShowPaymentModal(true)} />
+            <Editor 
+              data={resumeData} 
+              onChange={setResumeData} 
+              isPro={isPro} 
+              onUpgrade={() => setShowPaymentModal(true)} 
+            />
           </div>
 
           {/* Right: Live Preview (Screen Only) */}
@@ -393,7 +533,7 @@ const App: React.FC = () => {
                    {/* Original / Current */}
                    <div>
                      {isCompareMode && <div className="text-center mb-2 font-bold text-gray-500 uppercase tracking-wider text-sm">Original</div>}
-                     {/* Note: We must always have one main preview ref for PDF generation */}
+                     {/* Note: previewRef is used here for visual DOM manipulations if needed, but not for PDF generation anymore */}
                      <ResumePreview data={resumeData} template={activeTemplate} previewRef={previewRef} />
                    </div>
 
@@ -489,14 +629,7 @@ const App: React.FC = () => {
                      {/* Original */}
                      <div className={`shadow-2xl bg-white ${isCompareMode ? 'scale-[0.8] origin-top' : ''}`}>
                         {isCompareMode && <div className="bg-white/90 backdrop-blur p-2 mb-2 text-center font-bold text-gray-700 rounded shadow-sm">Current Version</div>}
-                        {/* Using a separate render for the modal to ensure clean styles, but referencing it is tricky. 
-                            Ideally, we use the one in the main view for PDF generation to avoid double rendering complexity, 
-                            but for user experience, seeing it here is key. 
-                            
-                            Wait, handleDownloadPDF uses previewRef. If we are in modal, previewRef from the main body might be hidden/small.
-                            Let's attach previewRef to THIS instance if modal is open.
-                        */}
-                        <ResumePreview data={resumeData} template={activeTemplate} previewRef={showFullPreview ? previewRef : undefined} />
+                        <ResumePreview data={resumeData} template={activeTemplate} />
                      </div>
 
                      {/* Optimized */}
@@ -728,19 +861,32 @@ const App: React.FC = () => {
           </div>
         )}
 
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)}
+          onLogin={(u) => {
+            setUser(u);
+            setShowAuthModal(false);
+          }}
+        />
+
         <PaymentModal 
           isOpen={showPaymentModal} 
           onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => {
-            setIsPro(true);
-            setShowPaymentModal(false);
-          }}
+          onSuccess={handlePaymentSuccess}
         />
       </div>
 
-      {/* PRINT CONTENT - Only visible during print via CSS */}
+      {/* HIDDEN PDF CONTENT - Rendered specifically for html2pdf generation off-screen */}
+      {/* We position this off-screen but keep it part of the layout so it renders dimensions correctly */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+         <div ref={pdfComponentRef} className="w-[210mm] bg-white">
+            <ResumePreview data={resumeData} template={activeTemplate} />
+         </div>
+      </div>
+
+      {/* PRINT CONTENT - Only visible during browser print action */}
       <div id="print-content">
-         {/* We only render this during print to capture the full resume cleanly without UI state affecting it */}
          <ResumePreview data={resumeData} template={activeTemplate} />
       </div>
     </>

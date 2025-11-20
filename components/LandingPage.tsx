@@ -1,17 +1,85 @@
 
-import React from 'react';
-import { Check, ArrowRight, Sparkles, Layout, Shield, Zap } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Check, ArrowRight, Sparkles, Layout, Shield, Zap, FileUp, FileText, LogIn, UserPlus } from 'lucide-react';
+import { User } from '../types';
 
 interface LandingPageProps {
   onStart: () => void;
   onSubscribe: () => void;
+  onImport: (file: File) => void;
+  isImporting: boolean;
+  user: User | null;
+  onLoginClick: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe, onImport, isImporting, user, onLoginClick }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onImport(e.target.files[0]);
+    }
+  };
+
+  const handleStart = () => {
+    if (user) {
+      onStart();
+    } else {
+      onLoginClick();
+    }
+  };
+
+  const handleImportClick = () => {
+    if (user) {
+      fileInputRef.current?.click();
+    } else {
+      onLoginClick();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white font-sans">
+    <div className="min-h-screen bg-white font-sans flex flex-col">
+      {/* Navbar */}
+      <nav className="w-full px-6 py-4 flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
+          <div className="bg-blue-600 p-1.5 rounded text-white">
+            <FileText size={20} />
+          </div>
+          <span className="font-bold text-xl tracking-tight text-gray-900">ResumeAI</span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">Hi, {user.name}</span>
+              <button 
+                onClick={onStart}
+                className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          ) : (
+            <>
+              <button 
+                onClick={onLoginClick}
+                className="text-sm font-bold text-gray-600 hover:text-gray-900 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <LogIn size={16} /> Log In
+              </button>
+              <button 
+                onClick={onLoginClick}
+                className="text-sm font-bold bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-all shadow-sm hover:shadow-md"
+              >
+                <UserPlus size={16} /> Sign Up
+              </button>
+            </>
+          )}
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-blue-50 to-white pt-20 pb-32 px-6">
+      <div className="bg-gradient-to-b from-blue-50 to-white pt-10 pb-32 px-6 flex-1 flex flex-col justify-center">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-8 animate-fade-in-up">
             <Sparkles size={16} />
@@ -24,23 +92,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe }
           <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
             Create professional, ATS-friendly resumes in minutes. Our AI analyzes your profile and optimizes it for your dream job.
           </p>
+          
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
-              onClick={onStart}
+              onClick={handleStart}
               className="px-8 py-4 bg-blue-600 text-white rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-200 flex items-center justify-center gap-2"
             >
-              Create My Resume <ArrowRight size={20} />
+              Create From Scratch <ArrowRight size={20} />
             </button>
-            <button 
-              onClick={() => {
-                const pricing = document.getElementById('pricing');
-                pricing?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-8 py-4 bg-white text-gray-700 border border-gray-200 rounded-full font-bold text-lg hover:bg-gray-50 transition-all"
-            >
-              View Plans
-            </button>
+            
+            <div className="relative">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                className="hidden"
+                accept=".pdf,.docx,.doc"
+                onChange={handleFileChange}
+              />
+              <button 
+                onClick={handleImportClick}
+                disabled={isImporting}
+                className="w-full px-8 py-4 bg-white text-gray-700 border border-gray-300 rounded-full font-bold text-lg hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                    Parsing...
+                  </>
+                ) : (
+                  <>
+                    <FileUp size={20} /> Import Resume
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+          <p className="mt-4 text-sm text-gray-500">Supported formats: PDF, DOCX</p>
         </div>
       </div>
 
@@ -112,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onSubscribe }
                 </li>
               </ul>
               <button 
-                onClick={onStart}
+                onClick={handleStart}
                 className="w-full py-3 px-6 border-2 border-gray-900 text-gray-900 rounded-xl font-bold hover:bg-gray-900 hover:text-white transition-colors"
               >
                 Get Started Free

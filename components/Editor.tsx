@@ -191,6 +191,16 @@ export const Editor: React.FC<EditorProps> = ({ data, onChange, isPro, onUpgrade
               placeholder="John Doe"
             />
           </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+            <input 
+              type="text" 
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              value={data.personal.jobTitle}
+              onChange={(e) => handlePersonalChange('jobTitle', e.target.value)}
+              placeholder="e.g. Senior Product Manager"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input 

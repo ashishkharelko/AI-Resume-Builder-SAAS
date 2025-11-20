@@ -26,6 +26,7 @@ export interface Project {
 export interface ResumeData {
   personal: {
     fullName: string;
+    jobTitle: string;
     email: string;
     phone: string;
     linkedin: string;
@@ -39,6 +40,13 @@ export interface ResumeData {
   education: Education[];
   projects: Project[];
   skills: string[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  isPro: boolean;
 }
 
 export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'creative' | 'polished' | 'elegant' | 'executive';

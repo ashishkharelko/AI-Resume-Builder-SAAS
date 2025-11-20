@@ -123,3 +123,109 @@ export const analyzeATS = async (resume: ResumeData): Promise<{ score: number; b
     throw error;
   }
 };
+
+export const parseResumeFromText = async (rawText: string): Promise<ResumeData> => {
+  const ai = getAiClient();
+
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      personal: {
+        type: Type.OBJECT,
+        properties: {
+          fullName: { type: Type.STRING },
+          jobTitle: { type: Type.STRING, description: "The candidate's current job title or professional headline." },
+          email: { type: Type.STRING },
+          phone: { type: Type.STRING },
+          linkedin: { type: Type.STRING },
+          github: { type: Type.STRING },
+          website: { type: Type.STRING },
+          summary: { type: Type.STRING },
+          location: { type: Type.STRING },
+          photo: { type: Type.STRING, description: "Leave empty" }
+        },
+        required: ["fullName", "email", "summary"]
+      },
+      experience: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            role: { type: Type.STRING },
+            company: { type: Type.STRING },
+            startDate: { type: Type.STRING },
+            endDate: { type: Type.STRING },
+            current: { type: Type.BOOLEAN },
+            description: { type: Type.STRING }
+          },
+          required: ["role", "company", "description"]
+        }
+      },
+      education: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            degree: { type: Type.STRING },
+            school: { type: Type.STRING },
+            year: { type: Type.STRING }
+          },
+          required: ["degree", "school", "year"]
+        }
+      },
+      projects: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            name: { type: Type.STRING },
+            link: { type: Type.STRING },
+            description: { type: Type.STRING }
+          },
+          required: ["name", "description"]
+        }
+      },
+      skills: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING }
+      }
+    },
+    required: ["personal", "experience", "education", "projects", "skills"]
+  };
+
+  const prompt = `
+    You are an intelligent Resume Parser.
+    Extract the information from the following raw resume text and format it strictly into the provided JSON schema.
+    
+    For IDs, generate random strings (e.g., "1", "2").
+    If a field is not found, use an empty string or false.
+    Infer the "current" status for jobs based on the date "Present" or "Current".
+    Infer the candidate's main job title or headline for the "jobTitle" field based on their most recent experience or summary.
+    Clean up the text (remove extra whitespace).
+
+    Raw Text:
+    ${rawText.substring(0, 30000)}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No response from AI");
+    
+    return JSON.parse(cleanJson(text));
+  } catch (error) {
+    console.error("Parsing failed", error);
+    throw error;
+  }
+};
