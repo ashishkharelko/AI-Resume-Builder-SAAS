@@ -167,18 +167,49 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Load saved resume if user is logged in
+  // Load saved resume OR Reset for New User
   useEffect(() => {
     const loadResume = async () => {
       if (user) {
         const saved = await authService.getResume(user.id);
         if (saved) {
           setResumeData(saved);
+        } else {
+          // NEW USER: Reset "Alex Morgan" data to User's default
+          const newData = JSON.parse(JSON.stringify(initialData)) as ResumeData;
+          newData.personal.fullName = user.name;
+          newData.personal.email = user.email;
+          newData.personal.phone = '';
+          newData.personal.summary = '';
+          newData.personal.linkedin = '';
+          newData.personal.github = '';
+          newData.personal.website = '';
+          newData.personal.location = '';
+          // Use the photo from google login if available
+          newData.personal.photo = user.photoUrl || '';
+          newData.experience = [];
+          newData.projects = [];
+          newData.education = [];
+          newData.skills = [];
+          setResumeData(newData);
         }
       }
     };
     loadResume();
   }, [user]);
+
+  // Independent effect to sync photo if user has one but resume doesn't
+  useEffect(() => {
+    if (user?.photoUrl && !resumeData.personal.photo) {
+      setResumeData(prev => ({
+        ...prev,
+        personal: {
+           ...prev.personal,
+           photo: user.photoUrl || ''
+        }
+      }));
+    }
+  }, [user?.photoUrl]);
 
   // Effect for triggering PDF download once the temporary view is rendered
   useEffect(() => {
@@ -414,6 +445,7 @@ const App: React.FC = () => {
           isOpen={showPaymentModal} 
           onClose={() => setShowPaymentModal(false)} 
           onSuccess={handlePaymentSuccess}
+          userData={user ? { name: user.name, email: user.email, phone: '' } : undefined}
         />
       </>
     );
@@ -437,6 +469,13 @@ const App: React.FC = () => {
               {/* Auth State */}
               {user ? (
                  <div className="flex items-center gap-3 mr-2">
+                    {user.photoUrl ? (
+                       <img src={user.photoUrl} alt={user.name} className="w-8 h-8 rounded-full border border-gray-200 object-cover" />
+                    ) : (
+                       <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">
+                          {user.name.charAt(0)}
+                       </div>
+                    )}
                     <span className="text-sm font-medium text-gray-700 hidden md:block">Hi, {user.name}</span>
                     <button 
                       onClick={handleSave}
@@ -659,7 +698,7 @@ const App: React.FC = () => {
         {/* Template Gallery Modal */}
         {showTemplateGallery && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-xl lg:max-w-6xl h-[90vh] flex flex-col overflow-hidden">
               <div className="p-6 bg-white border-b flex justify-between items-center">
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Choose a Template</h3>
@@ -883,6 +922,7 @@ const App: React.FC = () => {
           isOpen={showPaymentModal} 
           onClose={() => setShowPaymentModal(false)}
           onSuccess={handlePaymentSuccess}
+          userData={user ? { name: user.name, email: user.email, phone: '' } : undefined}
         />
       </div>
 
